@@ -1,6 +1,5 @@
 # Concealed Position
 
-## What is this?
 Concealed Position is a local privilege escalation attack against Windows using the concept of "Bring Your Own Vulnerability". Specifically, CP uses the Point and Print logic in Windows that allows a low privilege user to install printer driverss. We then exploit the installed driver to escalate to SYSTEM.
 
 ## How does it work?
