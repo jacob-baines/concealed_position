@@ -104,11 +104,11 @@ namespace
         ZeroMemory(&printerInfo, sizeof(printerInfo));
         printerInfo.pPortName = (LPWSTR)L"lpt1:";
         printerInfo.pDriverName = (LPWSTR)wdriver.c_str();
-        printerInfo.pPrinterName = (LPWSTR)L"CanonPrinter";
+        printerInfo.pPrinterName = (LPWSTR)L"Ricoh";
         printerInfo.pPrintProcessor = (LPWSTR)L"WinPrint";
         printerInfo.pDatatype = (LPWSTR)L"RAW";
-        printerInfo.pComment = (LPWSTR)L"Canon TR150";
-        printerInfo.pLocation = (LPWSTR)L"Shared Canon Printer";
+        printerInfo.pComment = (LPWSTR)L"Poison Damage";
+        printerInfo.pLocation = (LPWSTR)L"Shared Ricoh Printer";
         printerInfo.Attributes = PRINTER_ATTRIBUTE_RAW_ONLY | PRINTER_ATTRIBUTE_HIDDEN;
         printerInfo.AveragePPM = 9001;
         HANDLE hPrinter = AddPrinter(NULL, 2, (LPBYTE)&printerInfo);
