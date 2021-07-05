@@ -151,7 +151,7 @@ int main(int p_argc, const char* p_argv[])
 	std::cout << "|   |_| ||  | |  || |_____ |   |   |   |  |   | |  | |  ||       |               " << std::endl;
 	std::cout << "|    ___||  |_|  ||_____  ||   |   |   |  |   | |  |_|  ||  _    |               " << std::endl;
 	std::cout << "|   |    |       | _____| ||   |   |   |  |   | |       || | |   |               " << std::endl;
-	std::cout << "|___|    |_______||_______||___|   |___|  |___| |_______||_|  |__|               " << std::endl;
+	std::cout << "|___|    |_______||_______||___|   |___|  |___| |_______||_|  |__|    client!    " << std::endl;
 	std::cout << std::endl;
 
 	std::string shared_printer;
