@@ -12,6 +12,8 @@ namespace
 {
 	const ExploitFactory s_exploits;
 
+	const std::string catch_me("WVqtcQKfeIUxunX1jAadGwMiir5LacjHwN8tVl1Pr7AiwJnZCsik2TxHLZgGhErb");
+
 	bool installDriverFromStore(const std::string& p_driver)
 	{
 		std::wstring wDriver(p_driver.begin(), p_driver.end());
