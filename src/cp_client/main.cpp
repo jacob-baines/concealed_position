@@ -14,6 +14,13 @@ namespace
 
 	const std::string catch_me("WVqtcQKfeIUxunX1jAadGwMiir5LacjHwN8tVl1Pr7AiwJnZCsik2TxHLZgGhErb");
 
+	/*
+	* Tries to install the provided driver from the driver store. InstallPrinterDriverFromPackage
+	* allows a low privileged user to install the driver as long as it's present in the store.
+	* 
+	* \param[in] p_driver the name of the driver to install
+	* \return true on success. false otherwise.
+	*/
 	bool installDriverFromStore(const std::string& p_driver)
 	{
 		std::wstring wDriver(p_driver.begin(), p_driver.end());
@@ -27,6 +34,14 @@ namespace
 		return true;
 	}
 
+	/*
+	* Downloads a driver from a remote printer and stages it in the driver store.
+	* GetPrinterDriver allows a low privileged user to introduce arbitrary drivers
+	* into the driver store as long as they are signed.
+	* 
+	* \param[in] p_shared_printer the printer to download the driver from
+	* \return true on success. false otherwise.
+	*/
 	bool downloadDriver(const std::string& p_shared_printer)
 	{
 		bool return_value = false;
