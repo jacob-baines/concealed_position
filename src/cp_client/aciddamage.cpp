@@ -63,7 +63,7 @@ namespace
 }
 
 AcidDamage::AcidDamage() :
-    Exploit("Lexmark Universal v2"),
+    Exploit("Lexmark Universal v2", "AcidDamage"),
     m_target_directory("C:\\ProgramData\\Lexmark Universal v2\\"),
     m_target_dll("Universal Color Laser.gdl"),
     m_malicious_dll("Dll.dll")

