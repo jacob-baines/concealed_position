@@ -52,5 +52,8 @@
     <ClInclude Include="popl.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="directory_info.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

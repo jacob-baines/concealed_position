@@ -12,17 +12,6 @@
 
 namespace
 {
-    const int s_maxBuffer = 4096;
-
-    typedef struct _DIRECTORY_INFO
-    {
-        HANDLE      hDir;
-        TCHAR       lpszDirName[MAX_PATH];
-        CHAR        lpBuffer[s_maxBuffer];
-        DWORD       dwBufLength;
-        OVERLAPPED  Overlapped;
-    } DIRECTORY_INFO, * PDIRECTORY_INFO, * LPDIRECTORY_INFO;
-
     bool installPrinter(const std::string& p_driver)
     {
         std::cout << "[+] Installing printer" << std::endl;

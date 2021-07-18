@@ -160,6 +160,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="aciddamage.hpp" />
+    <ClInclude Include="directory_info.hpp" />
     <ClInclude Include="exploit.h" />
     <ClInclude Include="exploitfactory.h" />
     <ClInclude Include="inject_me.hpp" />
