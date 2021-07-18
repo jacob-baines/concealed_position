@@ -31,9 +31,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="popl.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="radiantdamage.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -50,6 +47,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="aciddamage.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="popl.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
