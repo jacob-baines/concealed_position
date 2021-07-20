@@ -18,6 +18,5 @@ private:
 
 	const std::string m_target_directory;
 	const std::string m_target_dll;
-	const std::string m_malicious_dll;
 };
 

