@@ -60,7 +60,7 @@ namespace
 		BYTE data[1024] = { 0 };
 		DWORD needed = 0;
 		std::cout << "[+] Staging driver in driver store" << std::endl;
-		if (GetPrinterDriver(hPrinter, NULL, 1, &data[0], 1024, &needed) == false)
+		if (GetPrinterDriver(hPrinter, NULL, 1, &data[0], 1024, &needed) == 0)
 		{
 			if (GetLastError() == ERROR_UNKNOWN_PRINTER_DRIVER)
 			{
@@ -77,6 +77,11 @@ namespace
 				std::cout << "[-] Failed to stage the driver: " << GetLastError() << std::endl;
 			}
 		}
+		else
+		{
+			return_value = true;
+		}
+
 
 		ClosePrinter(hPrinter);
 		return return_value;
