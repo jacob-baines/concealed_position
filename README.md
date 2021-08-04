@@ -30,7 +30,7 @@ client: Add printer
 It is important to note that SLASHINGDAMAGE doesn't actually work like that though. SLASHINGDAMAGE is an implementation of the evil printer attack described at DEFCON 28 (2020) and has long since been patched. I just so happen to enjoy the attack (it sparked the rest of this development) and figured I'd leave the exploit in my evil server... as confusing as that may be.
 
 ## Is this a Windows vulnerability?
-Arguably, yes. The driver store is a ["trusted collection of ... third-party driver packages"](https://docs.microsoft.com/en-us/windows-hardware/drivers/install/driver-store) that requires administrator access to modify. Using `GetPrinterDriver` a low privileged attacker can stage arbitrary drivers into the store. This, to me, is a clear security boundary.
+Arguably, yes. The driver store is a ["trusted collection of ... third-party driver packages"](https://docs.microsoft.com/en-us/windows-hardware/drivers/install/driver-store) that requires administrator access to modify. Using `GetPrinterDriver` a low privileged attacker can stage arbitrary drivers into the store. This, to me, crosses a clear security boundary.
 
 Microsoft seemed to agree when they issued [CVE-2021-34481](https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-34481).
 
