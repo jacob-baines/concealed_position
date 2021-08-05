@@ -5,18 +5,18 @@
 class PoisonDamage : public Exploit {
 public:
 
-	PoisonDamage();
+    PoisonDamage();
 
-	virtual ~PoisonDamage();
+    virtual ~PoisonDamage();
 
-	virtual bool do_exploit();
-
-private:
-
+    virtual bool do_exploit();
 
 private:
 
-	const std::string m_target_directory;
-	const std::string m_target_dll;
+
+private:
+
+    const std::string m_target_directory;
+    const std::string m_target_dll;
 };
 

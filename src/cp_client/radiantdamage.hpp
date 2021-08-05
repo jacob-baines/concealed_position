@@ -5,17 +5,17 @@
 class RadiantDamage : public Exploit {
 public:
 
-	RadiantDamage();
+    RadiantDamage();
 
-	virtual ~RadiantDamage();
+    virtual ~RadiantDamage();
 
-	virtual bool do_exploit();
-
-private:
-
+    virtual bool do_exploit();
 
 private:
 
-	const std::string m_target_directory;
-	const std::string m_target_dll;
+
+private:
+
+    const std::string m_target_directory;
+    const std::string m_target_dll;
 };

